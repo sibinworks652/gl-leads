@@ -29,6 +29,7 @@ class OrganisationStaffController extends Controller
             'organisations' => collect([$admin->organisation])->filter(),
             'roles' => ['organisation_staff'],
             'routePrefix' => 'organisation',
+            'routeParams' => ['organisation' => $admin->organisation],
             'pageTitle' => 'Organisation Staffs',
             'canSelectOrganisation' => false,
             'staffModelClass' => \App\Models\User::class,
@@ -47,11 +48,11 @@ class OrganisationStaffController extends Controller
         if ($request->expectsJson()) {
             return response()->json([
                 'message' => 'Staff created successfully.',
-                'redirect' => route('organisation.staffs.index'),
+                'redirect' => route('organisation.staffs.index', ['organisation' => $admin->organisation]),
             ]);
         }
 
-        return redirect()->route('organisation.staffs.index')->with('success', 'Staff created successfully.');
+        return redirect()->route('organisation.staffs.index', ['organisation' => $admin->organisation])->with('success', 'Staff created successfully.');
     }
 
     public function update(Request $request, User $staff): JsonResponse|RedirectResponse
@@ -72,11 +73,11 @@ class OrganisationStaffController extends Controller
         if ($request->expectsJson()) {
             return response()->json([
                 'message' => 'Staff updated successfully.',
-                'redirect' => route('organisation.staffs.index'),
+                'redirect' => route('organisation.staffs.index', ['organisation' => $admin->organisation]),
             ]);
         }
 
-        return redirect()->route('organisation.staffs.index')->with('success', 'Staff updated successfully.');
+        return redirect()->route('organisation.staffs.index', ['organisation' => $admin->organisation])->with('success', 'Staff updated successfully.');
     }
 
     public function destroy(User $staff): RedirectResponse
@@ -84,7 +85,7 @@ class OrganisationStaffController extends Controller
         $this->authorizeStaff($staff, Auth::guard('web')->user());
         $staff->delete();
 
-        return redirect()->route('organisation.staffs.index')->with('success', 'Staff deleted successfully.');
+        return redirect()->route('organisation.staffs.index', ['organisation' => Auth::guard('web')->user()->organisation])->with('success', 'Staff deleted successfully.');
     }
 
     protected function validatedData(Request $request, ?User $staff = null): array

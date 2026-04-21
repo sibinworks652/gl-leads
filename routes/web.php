@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\LeadController;
 use App\Http\Controllers\Admin\OrganisationController;
 use App\Http\Controllers\Admin\OrganisationStaffController;
+use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\StaffController;
 use Illuminate\Support\Facades\Route;
 
@@ -21,32 +22,133 @@ Route::middleware(['auth:admin'])->group(function () {
 
     // 1. Superadmin
     Route::middleware(['role:Super Admin,admin'])->prefix('admin')->name('admin.')->group(function () {
-        Route::get('/dashboard', [DashboardController::class, 'superadmin'])->name('dashboard');
-        Route::resource('organisations', OrganisationController::class)->except(['show', 'create', 'edit']);
-        Route::resource('staffs', StaffController::class)->except(['show', 'create', 'edit'])->parameters([
-            'staffs' => 'staff',
-        ]);
-        Route::resource('leads', LeadController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::get('/dashboard', [DashboardController::class, 'superadmin'])
+            ->middleware('permission:dashboard.view,admin')
+            ->name('dashboard');
+
+        Route::get('organisations', [OrganisationController::class, 'index'])
+            ->middleware('permission:organisations.view,admin')
+            ->name('organisations.index');
+        Route::post('organisations', [OrganisationController::class, 'store'])
+            ->middleware('permission:organisations.create,admin')
+            ->name('organisations.store');
+        Route::put('organisations/{organisation}', [OrganisationController::class, 'update'])
+            ->middleware('permission:organisations.update,admin')
+            ->name('organisations.update');
+        Route::delete('organisations/{organisation}', [OrganisationController::class, 'destroy'])
+            ->middleware('permission:organisations.delete,admin')
+            ->name('organisations.destroy');
+
+        Route::get('roles', [RoleController::class, 'index'])
+            ->middleware('permission:roles.view,admin')
+            ->name('roles.index');
+        Route::post('roles', [RoleController::class, 'store'])
+            ->middleware('permission:roles.create,admin')
+            ->name('roles.store');
+        Route::put('roles/{role}', [RoleController::class, 'update'])
+            ->middleware('permission:roles.update,admin')
+            ->name('roles.update');
+        Route::delete('roles/{role}', [RoleController::class, 'destroy'])
+            ->middleware('permission:roles.delete,admin')
+            ->name('roles.destroy');
+
+        Route::get('staffs', [StaffController::class, 'index'])
+            ->middleware('permission:staffs.view,admin')
+            ->name('staffs.index');
+        Route::post('staffs', [StaffController::class, 'store'])
+            ->middleware('permission:staffs.create,admin')
+            ->name('staffs.store');
+        Route::put('staffs/{staff}', [StaffController::class, 'update'])
+            ->middleware('permission:staffs.update,admin')
+            ->name('staffs.update');
+        Route::delete('staffs/{staff}', [StaffController::class, 'destroy'])
+            ->middleware('permission:staffs.delete,admin')
+            ->name('staffs.destroy');
+
+        Route::get('leads', [LeadController::class, 'index'])
+            ->middleware('permission:leads.view,admin')
+            ->name('leads.index');
+        Route::post('leads', [LeadController::class, 'store'])
+            ->middleware('permission:leads.create,admin')
+            ->name('leads.store');
+        Route::put('leads/{lead}', [LeadController::class, 'update'])
+            ->middleware('permission:leads.update,admin')
+            ->name('leads.update');
+        Route::delete('leads/{lead}', [LeadController::class, 'destroy'])
+            ->middleware('permission:leads.delete,admin')
+            ->name('leads.destroy');
     });
 
 });
 
 Route::middleware(['auth:web'])->group(function () {
     Route::middleware(['role:internal_staff,web'])->prefix('staff')->name('staff.')->group(function () {
-        Route::get('/dashboard', [DashboardController::class, 'staff'])->name('dashboard');
+        Route::get('/dashboard', [DashboardController::class, 'staff'])
+            ->middleware('permission:dashboard.view,web')
+            ->name('dashboard');
+        Route::get('staffs', [StaffController::class, 'index'])
+            ->middleware('permission:staffs.view,web')
+            ->name('staffs.index');
+        Route::post('staffs', [StaffController::class, 'store'])
+            ->middleware('permission:staffs.create,web')
+            ->name('staffs.store');
+        Route::put('staffs/{staff}', [StaffController::class, 'update'])
+            ->middleware('permission:staffs.update,web')
+            ->name('staffs.update');
+        Route::delete('staffs/{staff}', [StaffController::class, 'destroy'])
+            ->middleware('permission:staffs.delete,web')
+            ->name('staffs.destroy');
+        Route::get('leads', [LeadController::class, 'index'])
+            ->middleware('permission:leads.view,web')
+            ->name('leads.index');
+        Route::post('leads', [LeadController::class, 'store'])
+            ->middleware('permission:leads.create,web')
+            ->name('leads.store');
+        Route::put('leads/{lead}', [LeadController::class, 'update'])
+            ->middleware('permission:leads.update,web')
+            ->name('leads.update');
+        Route::delete('leads/{lead}', [LeadController::class, 'destroy'])
+            ->middleware('permission:leads.delete,web')
+            ->name('leads.destroy');
     });
 
-    Route::middleware(['role:organisation_admin,web'])->name('organisation.')->group(function () {
-        Route::get('/dashboard', [DashboardController::class, 'organisationAdmin'])->name('dashboard');
-        Route::resource('staffs', OrganisationStaffController::class)->only(['index', 'store', 'update', 'destroy'])->parameters([
-            'staffs' => 'staff',
-        ]);
-        Route::resource('leads', LeadController::class)->only(['index', 'store', 'update', 'destroy']);
-    });
+    Route::prefix('{organisation:slug}')->name('organisation.')->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'organisation'])
+            ->middleware('permission:dashboard.view,web')
+            ->name('dashboard');
 
-    Route::middleware(['role:organisation_staff,web'])->prefix('organisation-staff')->name('organisation-staff.')->group(function () {
-        Route::get('/dashboard', [DashboardController::class, 'organisationStaff'])->name('dashboard');
-        Route::resource('leads', LeadController::class)->only(['index', 'update']);
+        Route::middleware(['role:organisation_admin|organisation_staff,web'])->group(function () {
+            Route::get('leads', [LeadController::class, 'index'])
+                ->middleware('permission:leads.view,web')
+                ->name('leads.index');
+            Route::put('leads/{lead}', [LeadController::class, 'update'])
+                ->middleware('permission:leads.update,web')
+                ->name('leads.update');
+        });
+
+        Route::middleware(['role:organisation_admin|organisation_staff,web'])->group(function () {
+            Route::get('staffs', [OrganisationStaffController::class, 'index'])
+                ->middleware('permission:staffs.view,web')
+                ->name('staffs.index');
+            Route::post('staffs', [OrganisationStaffController::class, 'store'])
+                ->middleware('permission:staffs.create,web')
+                ->name('staffs.store');
+        });
+
+        Route::middleware(['role:organisation_admin,web'])->group(function () {
+            Route::put('staffs/{staff}', [OrganisationStaffController::class, 'update'])
+                ->middleware('permission:staffs.update,web')
+                ->name('staffs.update');
+            Route::delete('staffs/{staff}', [OrganisationStaffController::class, 'destroy'])
+                ->middleware('permission:staffs.delete,web')
+                ->name('staffs.destroy');
+            Route::post('leads', [LeadController::class, 'store'])
+                ->middleware('permission:leads.create,web')
+                ->name('leads.store');
+            Route::delete('leads/{lead}', [LeadController::class, 'destroy'])
+                ->middleware('permission:leads.delete,web')
+                ->name('leads.destroy');
+        });
     });
 });
 
@@ -56,8 +158,3 @@ Route::view('/invoice-list', 'invoice-list')->name('invoice-list');
 Route::view('/notification', 'notification')->name('notification');
 Route::view('/profile', 'profile')->name('profile');
 Route::view('/settings', 'settings')->name('settings');
-Route::redirect('/add-organisation', '/admin/organisations')->name('add-organisation');
-Route::redirect('/add-staff', '/admin/staffs')->name('add-staff');
-Route::redirect('/organisation', '/admin/organisations')->name('organisation');
-Route::redirect('/staffs', '/admin/staffs')->name('staffs');
-Route::redirect('/leads', '/admin/leads')->name('leads');

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Lead;
+use App\Models\Organisation;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 
@@ -20,12 +21,20 @@ class DashboardController extends Controller
     }
 
     public function staff() {
-        // Logic for your own company staff
-        return view('staff.dashboard');
+        return view('staff.dashboard', [
+            'stats' => $this->leadStats(),
+        ]);
     }
 
-    public function organisationAdmin() {
+    public function organisation(Organisation $organisation) {
         $user = Auth::guard('web')->user();
+        abort_unless((int) $user->organisation_id === (int) $organisation->id, 403);
+
+        if ($user->hasRole('organisation_staff') && ! $user->hasRole('organisation_admin')) {
+            return view('organisation_staff.dashboard', [
+                'stats' => $this->leadStats(null, $user->id),
+            ]);
+        }
 
         return view('organisation.dashboard', [
             'stats' => $this->leadStats($user->organisation_id),

@@ -1,5 +1,5 @@
 <div class="row g-3">
-    <div class="col-md-6 input-margin">
+    <div class="col-md-6 input-margin mt-4">
         <label class="form-label" for="name">Organisation Name</label>
         <input
             class="form-control @error('name') is-invalid @enderror"
@@ -14,7 +14,7 @@
         @enderror
     </div>
 
-    <div class="col-md-6 input-margin">
+    <div class="col-md-6 input-margin mt-4">
         <label class="form-label" for="code">Code</label>
         <input
             class="form-control @error('code') is-invalid @enderror"
@@ -28,7 +28,7 @@
         @enderror
     </div>
 
-    <div class="col-md-6 input-margin">
+    <div class="col-md-6 input-margin ">
         <label class="form-label" for="email">Email</label>
         <input
             class="form-control @error('email') is-invalid @enderror"
@@ -43,7 +43,7 @@
         @enderror
     </div>
 
-    <div class="col-md-6 input-margin">
+    <div class="col-md-6 input-margin ">
         <label class="form-label" for="phone">Phone</label>
         <input
             class="form-control @error('phone') is-invalid @enderror"
@@ -57,7 +57,7 @@
         @enderror
     </div>
 
-    <div class="col-md-6 input-margin">
+    <div class="col-md-6 input-margin ">
         <label class="form-label" for="website">Website</label>
         <input
             class="form-control @error('website') is-invalid @enderror"
@@ -72,7 +72,7 @@
         @enderror
     </div>
 
-    <div class="col-md-6 input-margin">
+    <div class="col-md-6 input-margin ">
         <label class="form-label" for="logo">Logo</label>
         <input
             class="form-control @error('logo') is-invalid @enderror"
@@ -91,9 +91,9 @@
         @endif
     </div>
 
-    <div class="col-md-6 input-margin">
+    <div class="col-md-6 input-margin ">
         <label class="form-label" for="status">Status</label>
-        <select class="form-select @error('status') is-invalid @enderror" id="status" name="status" required>
+        <select class="form-select @error('status') is-invalid @enderror" id="status" name="status" required data-choices data-choices-multiple-remove="true" data-choices-search-true>
             <option value="1" @selected(old('status', (int) $organisation->status) === 1)>Active</option>
             <option value="0" @selected((string) old('status', (int) $organisation->status) === 0)>Inactive</option>
         </select>
@@ -102,7 +102,7 @@
         @enderror
     </div>
 
-    <div class="col-6 input-margin">
+    <div class="col-md-6 input-margin ">
         <label class="form-label" for="address">Address</label>
         <input
             class="form-control @error('address') is-invalid @enderror"

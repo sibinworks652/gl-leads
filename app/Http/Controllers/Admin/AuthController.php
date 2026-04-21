@@ -88,7 +88,7 @@ class AuthController extends Controller
             $request->session()->regenerate();
             $user = Auth::guard('web')->user();
 
-            if (! $user->hasAnyRole(['internal_staff', 'organisation_admin', 'organisation_staff'])) {
+            if (! $user->hasRole('internal_staff')) {
                 Auth::guard('web')->logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
@@ -108,6 +108,17 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse|RedirectResponse
     {
+        $webUser = Auth::guard('web')->user();
+        $logoutRedirect = route('login');
+
+        if (
+            $webUser
+            && $webUser->organisation
+            && $webUser->hasAnyRole(['organisation_admin', 'organisation_staff'])
+        ) {
+            $logoutRedirect = route('organisation.login', ['organisation' => $webUser->organisation]);
+        }
+
         Auth::guard('admin')->logout();
         Auth::guard('web')->logout();
 
@@ -117,11 +128,11 @@ class AuthController extends Controller
         if ($request->expectsJson()) {
             return response()->json([
                 'message' => 'Logout successful.',
-                'redirect' => route('login'),
+                'redirect' => $logoutRedirect,
             ]);
         }
 
-        return redirect()->route('login');
+        return redirect()->to($logoutRedirect);
     }
 
     protected function loginResponse(Request $request, string $redirectUrl): JsonResponse|RedirectResponse
@@ -139,15 +150,13 @@ class AuthController extends Controller
     protected function redirectUrlFor($user, string $guard): string
     {
         if ($guard === 'web') {
+            if ($user->hasAnyRole(['organisation_admin', 'organisation_staff'])) {
+                return route('organisation.dashboard', ['organisation' => $user->organisation]);
+            }
+
             if ($user->hasRole('internal_staff')) {
                 return route('staff.dashboard');
             }
-
-            if ($user->hasRole('organisation_admin')) {
-                return route('organisation.dashboard');
-            }
-
-            return route('organisation-staff.dashboard');
         }
 
         if ($user->hasRole('Super Admin')) {

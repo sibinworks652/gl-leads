@@ -11,19 +11,22 @@ class RolePermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        // Reset cached roles and permissions
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        $guard = 'admin';
-        $permissions = [
+        $adminPermissions = [
             'dashboard.view',
-            'admins.view',
-            'admins.create',
-            'admins.update',
-            'admins.delete',
-            'admins.restore',
-            'admins.status',
-            'admins.password',
+            'organisations.view',
+            'organisations.create',
+            'organisations.update',
+            'organisations.delete',
+            'staffs.view',
+            'staffs.create',
+            'staffs.update',
+            'staffs.delete',
+            'leads.view',
+            'leads.create',
+            'leads.update',
+            'leads.delete',
             'roles.view',
             'roles.create',
             'roles.update',
@@ -34,17 +37,62 @@ class RolePermissionSeeder extends Seeder
             'permissions.delete',
         ];
 
-        // Create Permissions
-        foreach ($permissions as $permission) {
-            Permission::findOrCreate($permission, $guard);
+        $webPermissions = [
+            'dashboard.view',
+            'staffs.view',
+            'staffs.create',
+            'staffs.update',
+            'staffs.delete',
+            'leads.view',
+            'leads.create',
+            'leads.update',
+            'leads.delete',
+        ];
+
+        foreach ($adminPermissions as $permission) {
+            Permission::findOrCreate($permission, 'admin');
         }
 
-        // Create Super Admin Role and assign all permissions
-        $role = Role::findOrCreate('Super Admin', $guard);
-        $role->syncPermissions($permissions);
+        foreach ($webPermissions as $permission) {
+            Permission::findOrCreate($permission, 'web');
+        }
 
-        Role::findOrCreate('internal_staff', 'web');
-        Role::findOrCreate('organisation_admin', 'web');
-        Role::findOrCreate('organisation_staff', 'web');
+        $superAdminRole = Role::findOrCreate('Super Admin', 'admin');
+        $superAdminRole->syncPermissions($adminPermissions);
+
+        $internalStaffRole = Role::findOrCreate('internal_staff', 'web');
+        $internalStaffRole->syncPermissions([
+            'dashboard.view',
+            'staffs.view',
+            'staffs.create',
+            'staffs.update',
+            'staffs.delete',
+            'leads.view',
+            'leads.create',
+            'leads.update',
+            'leads.delete',
+        ]);
+
+        $organisationAdminRole = Role::findOrCreate('organisation_admin', 'web');
+        $organisationAdminRole->syncPermissions([
+            'dashboard.view',
+            'staffs.view',
+            'staffs.create',
+            'staffs.update',
+            'staffs.delete',
+            'leads.view',
+            'leads.create',
+            'leads.update',
+            'leads.delete',
+        ]);
+
+        $organisationStaffRole = Role::findOrCreate('organisation_staff', 'web');
+        $organisationStaffRole->syncPermissions([
+            'dashboard.view',
+            'leads.view',
+            'leads.update',
+        ]);
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 }

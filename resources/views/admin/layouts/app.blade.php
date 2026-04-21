@@ -27,7 +27,12 @@
      <!-- Theme Config js (Require in all Page) -->
      <script src="{{ asset('assets/js/config.js') }}"></script>
 </head>
-
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+    *{
+        font-family: 'Inter', sans-serif;
+    }
+    </style>
 <body>
 
      <!-- START Wrapper -->
@@ -382,29 +387,49 @@
                          @php
                               $adminUser = auth('admin')->user();
                               $panelUser = $adminUser ?: auth('web')->user();
+                             $isOrganisationStaffOnly = $panelUser?->hasRole('organisation_staff') && ! $panelUser?->hasRole('organisation_admin');
+                             $canAccessDashboard = (bool) $panelUser?->can('dashboard.view');
+                             $canAccessStaffs = (bool) $panelUser?->can('staffs.view');
+                             $canAccessLeads = (bool) $panelUser?->can('leads.view');
+                             $canAccessOrganisations = (bool) $panelUser?->can('organisations.view');
+                             $canAccessRoles = (bool) $panelUser?->can('roles.view');
                               $dashboardRoute = 'admin.dashboard';
+                             $dashboardRouteParams = [];
                               $staffRoute = 'admin.staffs.index';
+                             $staffRouteParams = [];
                               $leadRoute = 'admin.leads.index';
+                             $leadRouteParams = [];
 
-                              if ($panelUser?->hasRole('organisation_admin')) {
+                             if ($panelUser?->hasRole('organisation_admin')) {
                                    $dashboardRoute = 'organisation.dashboard';
+                                   $dashboardRouteParams = ['organisation' => $panelUser->organisation];
                                    $staffRoute = 'organisation.staffs.index';
+                                   $staffRouteParams = ['organisation' => $panelUser->organisation];
                                    $leadRoute = 'organisation.leads.index';
-                              } elseif ($panelUser?->hasRole('organisation_staff')) {
-                                   $dashboardRoute = 'organisation-staff.dashboard';
-                                   $leadRoute = 'organisation-staff.leads.index';
+                                   $leadRouteParams = ['organisation' => $panelUser->organisation];
+                              } elseif ($isOrganisationStaffOnly) {
+                                   $dashboardRoute = 'organisation.dashboard';
+                                   $dashboardRouteParams = ['organisation' => $panelUser->organisation];
+                                   $staffRoute = 'organisation.staffs.index';
+                                   $staffRouteParams = ['organisation' => $panelUser->organisation];
+                                   $leadRoute = 'organisation.leads.index';
+                                   $leadRouteParams = ['organisation' => $panelUser->organisation];
                               } elseif ($panelUser?->hasRole('internal_staff')) {
                                    $dashboardRoute = 'staff.dashboard';
+                                  $staffRoute = 'staff.staffs.index';
+                                  $leadRoute = 'staff.leads.index';
                               }
                          @endphp
-                         <li class="nav-item">
-                              <a class="nav-link {{ request()->routeIs('admin.dashboard', 'organisation.dashboard', 'organisation-staff.dashboard', 'staff.dashboard') ? 'active' : '' }}" href="{{ route($dashboardRoute) }}">
-                                   <span class="nav-icon">
-                                        <img src="{{ asset('assets/images/dashboard.svg') }}" alt="Dashboard" />
-                                   </span>
-                                   <span class="nav-text"> Dashboard </span>
-                              </a>
-                         </li>
+                         @if ($canAccessDashboard)
+                             <li class="nav-item">
+                                 <a class="nav-link {{ request()->routeIs('admin.dashboard', 'organisation.dashboard', 'staff.dashboard') ? 'active' : '' }}" href="{{ route($dashboardRoute, $dashboardRouteParams) }}">
+                                       <span class="nav-icon">
+                                            <img src="{{ asset('assets/images/dashboard.svg') }}" alt="Dashboard" />
+                                       </span>
+                                       <span class="nav-text"> Dashboard </span>
+                                  </a>
+                             </li>
+                         @endif
 
                          <!-- <li class="nav-item">
                     <a class="nav-link menu-arrow" href="#sidebarOrders" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="sidebarOrders">
@@ -431,9 +456,9 @@
                          </ul>
                     </div>
                </li> -->
-                         @if (! $panelUser?->hasRole('organisation_staff'))
+                         @if ($canAccessStaffs)
                          <li class="nav-item">
-                              <a class="nav-link {{ request()->routeIs('admin.staffs.*', 'organisation.staffs.*') ? 'active' : '' }}" href="{{ route($staffRoute) }}">
+                              <a class="nav-link {{ request()->routeIs('admin.staffs.*', 'organisation.staffs.*', 'staff.staffs.*') ? 'active' : '' }}" href="{{ route($staffRoute, $staffRouteParams) }}">
                                    <span class="nav-icon">
                                         <img src="{{ asset('assets/images/staff.svg') }}" alt="Staffs" />
                                    </span>
@@ -441,7 +466,7 @@
                               </a>
                          </li>
                          @endif
-                         @if ($panelUser?->hasRole('Super Admin'))
+                         @if ($canAccessOrganisations)
                          <li class="nav-item">
                               <a class="nav-link {{ request()->routeIs('admin.organisations.*') ? 'active' : '' }}" href="{{ route('admin.organisations.index') }}">
                                    <span class="nav-icon">
@@ -451,15 +476,27 @@
                               </a>
                          </li>
                          @endif
-
+                         @if ($canAccessRoles)
                          <li class="nav-item">
-                              <a class="nav-link {{ request()->routeIs('admin.leads.*', 'organisation.leads.*', 'organisation-staff.leads.*') ? 'active' : '' }}" href="{{ route($leadRoute) }}">
+                              <a class="nav-link {{ request()->routeIs('admin.roles.*') ? 'active' : '' }}" href="{{ route('admin.roles.index') }}">
+                                   <span class="nav-icon">
+                                        <img src="{{ asset('assets/images/settings.svg') }}" alt="Roles" />
+                                   </span>
+                                   <span class="nav-text"> Roles </span>
+                              </a>
+                         </li>
+                         @endif
+
+                         @if ($canAccessLeads)
+                         <li class="nav-item">
+                              <a class="nav-link {{ request()->routeIs('admin.leads.*', 'organisation.leads.*', 'staff.leads.*') ? 'active' : '' }}" href="{{ route($leadRoute, $leadRouteParams) }}">
                                    <span class="nav-icon">
                                         <img src="{{ asset('assets/images/leads.svg') }}" alt="Leads" />
                                    </span>
-                                   <span class="nav-text">{{ $panelUser?->hasRole('organisation_staff') ? 'Assigned Leads' : 'Leads' }}</span>
+                                   <span class="nav-text">{{ $isOrganisationStaffOnly ? 'Assigned Leads' : 'Leads' }}</span>
                               </a>
                          </li>
+                         @endif
 
 
 
@@ -539,14 +576,15 @@
                          const itemLabel = form.dataset.itemLabel || 'this record';
 
                          Swal.fire({
-                              icon: 'warning',
+                              icon: 'error',
                               title: 'Delete record?',
                               text: `You are about to delete ${itemLabel}. This action cannot be undone.`,
                               showCancelButton: true,
                               confirmButtonText: 'Yes, delete it',
                               cancelButtonText: 'Cancel',
-                              confirmButtonColor: '#ef5f5f',
-                              cancelButtonColor: '#8486a7',
+                              confirmButtonColor: '#ff0000',
+                              cancelButtonColor: '#000000',
+                              animation: false,
                          }).then((result) => {
                               if (result.isConfirmed) {
                                    form.submit();
@@ -556,47 +594,98 @@
                });
 
                const getErrorContainer = (input) => {
-                    return input.closest('.col-md-6, .col-12, .mb-3, .input-margin, .col-md-12')?.querySelector('.invalid-feedback');
+                    const wrappers = [
+                         '.input-margin',
+                         '.col-md-6',
+                         '.col-md-12',
+                         '.col-lg-6',
+                         '.col-lg-12',
+                         '.col-12',
+                         '.mb-3',
+                         '.form-group',
+                    ];
+
+                    for (const wrapper of wrappers) {
+                         const container = input.closest(wrapper)?.querySelector('.invalid-feedback');
+                         if (container) {
+                              return container;
+                         }
+                    }
+
+                    const siblingContainer = input.parentElement?.querySelector('.invalid-feedback');
+                    if (siblingContainer) {
+                         return siblingContainer;
+                    }
+
+                    const generatedContainer = document.createElement('div');
+                    generatedContainer.className = 'invalid-feedback d-block';
+                    generatedContainer.dataset.generated = 'true';
+                    input.insertAdjacentElement('afterend', generatedContainer);
+                    return generatedContainer;
+               };
+
+               const findFieldInputs = (form, field) => {
+                    const baseField = field.replace(/\.\*/g, '').replace(/\.\d+/g, '');
+                    const elements = Array.from(form.elements || []);
+
+                    return elements.filter((element) => {
+                         if (!element.name) {
+                              return false;
+                         }
+
+                         return element.name === field
+                              || element.name === baseField
+                              || element.name === `${baseField}[]`
+                              || element.name.startsWith(`${baseField}[`);
+                    });
                };
 
                const clearFormErrors = (form) => {
-                    form.querySelectorAll('.is-invalid').forEach((element) => {
-                         element.classList.remove('is-invalid');
+                    form.querySelectorAll('.error-input-bottom').forEach((element) => {
+                         element.classList.remove('error-input-bottom');
                     });
 
                     form.querySelectorAll('.invalid-feedback').forEach((element) => {
                          element.textContent = '';
+                         element.classList.remove('d-block');
+
+                         if (element.dataset.generated === 'true') {
+                              element.remove();
+                         }
                     });
                };
 
                const setFieldError = (form, field, message) => {
-                    const input = form.querySelector(`[name="${field}"]`);
-                    if (!input) {
+                    const inputs = findFieldInputs(form, field);
+                    if (!inputs.length) {
                          return;
                     }
 
-                    input.classList.add('is-invalid');
-                    const errorContainer = getErrorContainer(input);
+                    inputs.forEach((input) => input.classList.add('error-input-bottom'));
+                    const errorContainer = getErrorContainer(inputs[0]);
                     if (errorContainer) {
                          errorContainer.textContent = message;
+                         errorContainer.classList.add('d-block');
                     }
                };
 
                document.querySelectorAll('.ajax-form').forEach((form) => {
                     form.querySelectorAll('input, select, textarea').forEach((field) => {
                          field.addEventListener('input', () => {
-                              field.classList.remove('is-invalid');
+                              field.classList.remove('error-input-bottom');
                               const errorContainer = getErrorContainer(field);
                               if (errorContainer) {
                                    errorContainer.textContent = '';
+                                   errorContainer.classList.remove('d-block');
                               }
                          });
 
                          field.addEventListener('change', () => {
-                              field.classList.remove('is-invalid');
+                              field.classList.remove('error-input-bottom');
                               const errorContainer = getErrorContainer(field);
                               if (errorContainer) {
                                    errorContainer.textContent = '';
+                                   errorContainer.classList.remove('d-block');
                               }
                          });
                     });

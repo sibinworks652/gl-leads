@@ -25,7 +25,7 @@ class LeadController extends Controller
 
         if ($webUser?->hasRole('organisation_admin')) {
             $query->where('organisation_id', $webUser->organisation_id);
-        } elseif ($webUser?->hasRole('organisation_staff')) {
+        } elseif ($this->isOrganisationStaffOnly($webUser)) {
             $query->where('assigned_user_id', $webUser->id);
         }
 
@@ -34,9 +34,10 @@ class LeadController extends Controller
             'statuses' => self::STATUSES,
             'sources' => self::SOURCES,
             'assignableStaffs' => $this->assignableStaffs($admin, $webUser),
-            'canManageLeads' => ! $webUser?->hasRole('organisation_staff'),
+            'canManageLeads' => ! $this->isOrganisationStaffOnly($webUser),
             'routePrefix' => $this->routePrefix($admin, $webUser),
-            'pageTitle' => $webUser?->hasRole('organisation_staff') ? 'Assigned Leads' : 'Lead Reports',
+            'routeParams' => $this->routeParams($admin, $webUser),
+            'pageTitle' => $this->isOrganisationStaffOnly($webUser) ? 'Assigned Leads' : 'Lead Reports',
             'stats' => $this->statsFor($admin, $webUser),
         ]);
     }
@@ -52,11 +53,11 @@ class LeadController extends Controller
         if ($request->expectsJson()) {
             return response()->json([
                 'message' => 'Lead created successfully.',
-                'redirect' => route($this->routePrefix($admin, $webUser).'.leads.index'),
+                'redirect' => route($this->routePrefix($admin, $webUser).'.leads.index', $this->routeParams($admin, $webUser)),
             ]);
         }
 
-        return redirect()->route($this->routePrefix($admin, $webUser).'.leads.index')
+        return redirect()->route($this->routePrefix($admin, $webUser).'.leads.index', $this->routeParams($admin, $webUser))
             ->with('success', 'Lead created successfully.');
     }
 
@@ -66,7 +67,7 @@ class LeadController extends Controller
         $webUser = Auth::guard('web')->user();
         $this->authorizeLead($lead, $admin, $webUser);
 
-        if ($webUser?->hasRole('organisation_staff')) {
+        if ($this->isOrganisationStaffOnly($webUser)) {
             $lead->update($request->validate([
                 'status' => ['required', 'in:'.implode(',', self::STATUSES)],
                 'notes' => ['nullable', 'string', 'max:2000'],
@@ -79,11 +80,11 @@ class LeadController extends Controller
         if ($request->expectsJson()) {
             return response()->json([
                 'message' => 'Lead updated successfully.',
-                'redirect' => route($this->routePrefix($admin, $webUser).'.leads.index'),
+                'redirect' => route($this->routePrefix($admin, $webUser).'.leads.index', $this->routeParams($admin, $webUser)),
             ]);
         }
 
-        return redirect()->route($this->routePrefix($admin, $webUser).'.leads.index')
+        return redirect()->route($this->routePrefix($admin, $webUser).'.leads.index', $this->routeParams($admin, $webUser))
             ->with('success', 'Lead updated successfully.');
     }
 
@@ -96,7 +97,7 @@ class LeadController extends Controller
 
         $lead->delete();
 
-        return redirect()->route($this->routePrefix($admin, $webUser).'.leads.index')
+        return redirect()->route($this->routePrefix($admin, $webUser).'.leads.index', $this->routeParams($admin, $webUser))
             ->with('success', 'Lead deleted successfully.');
     }
 
@@ -169,7 +170,7 @@ class LeadController extends Controller
                 ->whereHas('roles', function ($roleQuery) {
                     $roleQuery->where('name', 'organisation_staff')->where('guard_name', 'web');
                 });
-        } elseif ($staffUser?->hasRole('organisation_staff')) {
+        } elseif ($this->isOrganisationStaffOnly($staffUser)) {
             $query->whereKey($staffUser->id);
         } else {
             $query->whereHas('roles', function ($roleQuery) {
@@ -186,7 +187,7 @@ class LeadController extends Controller
             abort(403);
         }
 
-        if ($staffUser?->hasRole('organisation_staff') && (int) $lead->assigned_user_id !== (int) $staffUser->id) {
+        if ($this->isOrganisationStaffOnly($staffUser) && (int) $lead->assigned_user_id !== (int) $staffUser->id) {
             abort(403);
         }
     }
@@ -201,11 +202,24 @@ class LeadController extends Controller
             return 'organisation';
         }
 
-        if ($staffUser?->hasRole('organisation_staff')) {
-            return 'organisation-staff';
+        if ($staffUser?->hasAnyRole(['organisation_admin', 'organisation_staff'])) {
+            return 'organisation';
         }
 
         return 'staff';
+    }
+
+    protected function routeParams(?Admin $admin, ?User $staffUser): array
+    {
+        if ($admin) {
+            return [];
+        }
+
+        if ($staffUser?->hasAnyRole(['organisation_admin', 'organisation_staff'])) {
+            return ['organisation' => $staffUser->organisation];
+        }
+
+        return [];
     }
 
     protected function statsFor(?Admin $admin, ?User $staffUser): array
@@ -214,7 +228,7 @@ class LeadController extends Controller
 
         if ($staffUser?->hasRole('organisation_admin')) {
             $query->where('organisation_id', $staffUser->organisation_id);
-        } elseif ($staffUser?->hasRole('organisation_staff')) {
+        } elseif ($this->isOrganisationStaffOnly($staffUser)) {
             $query->where('assigned_user_id', $staffUser->id);
         }
 
@@ -224,5 +238,12 @@ class LeadController extends Controller
             'completed' => (clone $query)->where('status', 'completed')->count(),
             'total' => (clone $query)->count(),
         ];
+    }
+
+    protected function isOrganisationStaffOnly(?User $user): bool
+    {
+        return (bool) $user
+            && $user->hasRole('organisation_staff')
+            && ! $user->hasRole('organisation_admin');
     }
 }

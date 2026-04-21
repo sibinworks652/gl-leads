@@ -2,18 +2,27 @@
 
 @section('content')
 <div class="container-fluid">
+    @php
+        $panelUser = auth('admin')->user() ?: auth('web')->user();
+        $canCreateOrganisation = (bool) $panelUser?->can('organisations.create');
+        $canUpdateOrganisation = (bool) $panelUser?->can('organisations.update');
+        $canDeleteOrganisation = (bool) $panelUser?->can('organisations.delete');
+        $canShowOrganisationActions = $canUpdateOrganisation || $canDeleteOrganisation;
+    @endphp
     <div class="row">
         <div class="col-12">
             <div class="card">
-                <div class="card-body">
-                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div class="card-body p-0">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 p-3">
                         <div>
                             <h4 class="card-title mb-1">Organisations</h4>
                             <p class="text-muted mb-0">Create, update, and remove organisations from a single popup flow.</p>
                         </div>
-                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createOrganisationModal">
-                            <i class="bx bx-plus me-1"></i> Add Organisation
-                        </button>
+                        @if ($canCreateOrganisation)
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createOrganisationModal">
+                                <i class="bx bx-plus me-1"></i> Add Organisation
+                            </button>
+                        @endif
                     </div>
 
                     <div class="table-responsive">
@@ -26,7 +35,9 @@
                                     <th>Website</th>
                                     <th>Staff Count</th>
                                     <th>Status</th>
-                                    <th class="text-end">Action</th>
+                                    @if ($canShowOrganisationActions)
+                                        <th class="text-end">Action</th>
+                                    @endif
                                 </tr>
                             </thead>
                             <tbody>
@@ -55,25 +66,31 @@
                                                 {{ $organisation->status ? 'Active' : 'Inactive' }}
                                             </span>
                                         </td>
-                                        <td class="text-end">
-                                            <button
-                                                type="button"
-                                                class="btn"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#editOrganisationModal-{{ $organisation->id }}"
-                                            >
-                                                <img src="{{ asset('assets/images/edit.svg') }}" alt="Edit">
-                                            </button>
-                                            <form action="{{ route('admin.organisations.destroy', $organisation) }}" method="POST" class="d-inline delete-record-form" data-item-label="{{ $organisation->name }}">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="btn"><img src="{{ asset('assets/images/delete.svg')}}" alt="Delete"></button>
-                                            </form>
-                                        </td>
+                                        @if ($canShowOrganisationActions)
+                                            <td class="text-end">
+                                                @if ($canUpdateOrganisation)
+                                                    <button
+                                                        type="button"
+                                                        class="btn"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#editOrganisationModal-{{ $organisation->id }}"
+                                                    >
+                                                        <img src="{{ asset('assets/images/edit.svg') }}" alt="Edit">
+                                                    </button>
+                                                @endif
+                                                @if ($canDeleteOrganisation)
+                                                    <form action="{{ route('admin.organisations.destroy', $organisation) }}" method="POST" class="d-inline delete-record-form" data-item-label="{{ $organisation->name }}">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="btn"><img src="{{ asset('assets/images/delete.svg')}}" alt="Delete"></button>
+                                                    </form>
+                                                @endif
+                                            </td>
+                                        @endif
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="6" class="text-center py-4 text-muted">No organisations found yet.</td>
+                                        <td colspan="{{ $canShowOrganisationActions ? 7 : 6 }}" class="text-center py-4 text-muted">No organisations found yet.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -89,59 +106,63 @@
     </div>
 </div>
 
-<div class="modal" id="createOrganisationModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Add Organisation</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form action="{{ route('admin.organisations.store') }}" method="POST" enctype="multipart/form-data" class="ajax-form">
-                <div class="modal-body">
-                    @csrf
-                    <input type="hidden" name="_modal" value="createOrganisationModal">
-                    @include('admin.organisations._form', [
-                        'organisation' => new \App\Models\Organisation(),
-                        'submitLabel' => 'Create Organisation',
-                        'includeFormWrapper' => false,
-                    ])
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Create Organisation</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-@foreach ($organisations as $organisation)
-    <div class="modal" id="editOrganisationModal-{{ $organisation->id }}" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+@if ($canCreateOrganisation)
+    <div class="modal" id="createOrganisationModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Edit Organisation</h5>
+                    <h5 class="modal-title">Add Organisation</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form action="{{ route('admin.organisations.update', $organisation) }}" method="POST" enctype="multipart/form-data" class="ajax-form">
+                <form action="{{ route('admin.organisations.store') }}" method="POST" enctype="multipart/form-data" class="ajax-form">
                     <div class="modal-body">
                         @csrf
-                        @method('PUT')
-                        <input type="hidden" name="_modal" value="editOrganisationModal-{{ $organisation->id }}">
+                        <input type="hidden" name="_modal" value="createOrganisationModal">
                         @include('admin.organisations._form', [
-                            'submitLabel' => 'Update Organisation',
+                            'organisation' => new \App\Models\Organisation(),
+                            'submitLabel' => 'Create Organisation',
                             'includeFormWrapper' => false,
                         ])
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Update Organisation</button>
+                        <button type="submit" class="btn btn-primary">Create Organisation</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
-@endforeach
+@endif
+
+@if ($canUpdateOrganisation)
+    @foreach ($organisations as $organisation)
+        <div class="modal" id="editOrganisationModal-{{ $organisation->id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit Organisation</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form action="{{ route('admin.organisations.update', $organisation) }}" method="POST" enctype="multipart/form-data" class="ajax-form">
+                        <div class="modal-body">
+                            @csrf
+                            @method('PUT')
+                            <input type="hidden" name="_modal" value="editOrganisationModal-{{ $organisation->id }}">
+                            @include('admin.organisations._form', [
+                                'submitLabel' => 'Update Organisation',
+                                'includeFormWrapper' => false,
+                            ])
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Update Organisation</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endforeach
+@endif
 @endsection
 
 @push('scripts')

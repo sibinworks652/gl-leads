@@ -2,6 +2,14 @@
 
 @section('content')
 <div class="container-fluid">
+    @php
+        $routeParams = $routeParams ?? [];
+        $panelUser = auth('admin')->user() ?: auth('web')->user();
+        $canCreateLead = (bool) $panelUser?->can('leads.create') && $canManageLeads;
+        $canUpdateLead = (bool) $panelUser?->can('leads.update');
+        $canDeleteLead = (bool) $panelUser?->can('leads.delete') && $canManageLeads;
+        $canShowLeadActions = $canUpdateLead || $canDeleteLead;
+    @endphp
     <div class="row g-3 mb-3">
         <div class="col-md-6 col-xl-3">
             <div class="card">
@@ -40,15 +48,15 @@
     <div class="row">
         <div class="col-12">
             <div class="card">
-                <div class="card-body">
-                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div class="card-body p-0">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 p-3">
                         <div>
                             <h4 class="card-title mb-1">{{ $pageTitle }}</h4>
                             <p class="text-muted mb-0">
                                 {{ $canManageLeads ? 'Track and manage lead allocation and performance.' : 'These are the leads assigned to you.' }}
                             </p>
                         </div>
-                        @if ($canManageLeads)
+                        @if ($canCreateLead)
                             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createLeadModal">
                                 <i class="bx bx-plus me-1"></i> Add Lead
                             </button>
@@ -65,7 +73,9 @@
                                     <th>Status</th>
                                     <th>Assigned To</th>
                                     <th>Date</th>
-                                    <th class="text-end">Action</th>
+                                    @if ($canShowLeadActions)
+                                        <th class="text-end">Action</th>
+                                    @endif
                                 </tr>
                             </thead>
                             <tbody>
@@ -82,26 +92,26 @@
                                         </td>
                                         <td>{{ $lead->assignedUser?->name ?: 'Unassigned' }}</td>
                                         <td>{{ $lead->lead_date?->format('M d Y') ?: 'N/A' }}</td>
-                                        <td class="text-end">
-                                            <button type="button" class="btn" data-bs-toggle="modal" data-bs-target="#editLeadModal-{{ $lead->id }}">
-                                                @if($canManageLeads)
-                                                    <img src="{{ asset('assets/images/edit.svg') }}" alt="Edit">
-                                                @else
-                                                   <img src="{{ asset('assets/images/edit.svg') }}" alt="Edit">
+                                        @if ($canShowLeadActions)
+                                            <td class="text-end">
+                                                @if ($canUpdateLead)
+                                                    <button type="button" class="btn" data-bs-toggle="modal" data-bs-target="#editLeadModal-{{ $lead->id }}">
+                                                        <img src="{{ asset('assets/images/edit.svg') }}" alt="Edit">
+                                                    </button>
                                                 @endif
-                                            </button>
-                                            @if ($canManageLeads)
-                                                <form action="{{ route($routePrefix.'.leads.destroy', $lead) }}" method="POST" class="d-inline delete-record-form" data-item-label="{{ $lead->name }}">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="btn"><img src="{{ asset('assets/images/delete.svg')}}" alt="Delete"></button>
-                                                </form>
-                                            @endif
-                                        </td>
+                                                @if ($canDeleteLead)
+                                                    <form action="{{ route($routePrefix.'.leads.destroy', array_merge($routeParams, ['lead' => $lead])) }}" method="POST" class="d-inline delete-record-form" data-item-label="{{ $lead->name }}">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="btn"><img src="{{ asset('assets/images/delete.svg')}}" alt="Delete"></button>
+                                                    </form>
+                                                @endif
+                                            </td>
+                                        @endif
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="text-center py-4 text-muted">No leads found yet.</td>
+                                        <td colspan="{{ $canShowLeadActions ? 7 : 6 }}" class="text-center py-4 text-muted">No leads found yet.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -117,15 +127,15 @@
     </div>
 </div>
 
-@if ($canManageLeads)
+@if ($canCreateLead)
 <div class="modal" id="createLeadModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Add Lead</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form action="{{ route($routePrefix.'.leads.store') }}" method="POST" class="ajax-form">
+            <form action="{{ route($routePrefix.'.leads.store', $routeParams) }}" method="POST" class="ajax-form">
                 <div class="modal-body">
                     @csrf
                     <input type="hidden" name="_modal" value="createLeadModal">
@@ -141,30 +151,32 @@
 </div>
 @endif
 
-@foreach ($leads as $lead)
-<div class="modal" id="editLeadModal-{{ $lead->id }}" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">{{ $canManageLeads ? 'Edit Lead' : 'Update Lead Status' }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+@if ($canUpdateLead)
+    @foreach ($leads as $lead)
+    <div class="modal" id="editLeadModal-{{ $lead->id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ $canManageLeads ? 'Edit Lead' : 'Update Lead Status' }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="{{ route($routePrefix.'.leads.update', array_merge($routeParams, ['lead' => $lead])) }}" method="POST" class="ajax-form">
+                    <div class="modal-body">
+                        @csrf
+                        @method('PUT')
+                        <input type="hidden" name="_modal" value="editLeadModal-{{ $lead->id }}">
+                        @include('admin.leads.partials.form', ['readonlyMode' => ! $canManageLeads])
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">{{ $canManageLeads ? 'Update Lead' : 'Save Status' }}</button>
+                    </div>
+                </form>
             </div>
-            <form action="{{ route($routePrefix.'.leads.update', $lead) }}" method="POST" class="ajax-form">
-                <div class="modal-body">
-                    @csrf
-                    @method('PUT')
-                    <input type="hidden" name="_modal" value="editLeadModal-{{ $lead->id }}">
-                    @include('admin.leads.partials.form', ['readonlyMode' => ! $canManageLeads])
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">{{ $canManageLeads ? 'Update Lead' : 'Save Status' }}</button>
-                </div>
-            </form>
         </div>
     </div>
-</div>
-@endforeach
+    @endforeach
+@endif
 @endsection
 
 @push('scripts')
